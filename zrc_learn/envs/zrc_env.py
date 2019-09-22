@@ -23,28 +23,44 @@ os.environ['PATH'] = libzrcgympath + os.pathsep + os.environ['PATH']
 #libm = ctypes.cdll.LoadLibrary(find_library('m'))
 
 libzrcgym = ctypes.cdll.LoadLibrary('libzrcgym.dll')
-libzrcgym.env_observation_length.restype = c_int
-libzrcgym.env_observation_length.argtypes = None
-libzrcgym.env_action_length.restype = c_int
-libzrcgym.env_action_length.argtypes = None
+libzrcgym.env_locomotion_obs_length.restype = c_int
+libzrcgym.env_locomotion_obs_length.argtypes = None
+libzrcgym.env_locomotion_act_length.restype = c_int
+libzrcgym.env_locomotion_act_length.argtypes = None
+libzrcgym.env_sense_obs_length.restype = c_int
+libzrcgym.env_sense_obs_length.argtypes = None
+libzrcgym.env_sense_act_length.restype = c_int
+libzrcgym.env_sense_act_length.argtypes = None
 libzrcgym.env_create.restype = c_void_p
 libzrcgym.env_create.argtypes = None
 libzrcgym.env_delete.restype = None
 libzrcgym.env_delete.argtypes = [c_void_p]
-libzrcgym.env_reset.restype = None
-libzrcgym.env_reset.argtypes = [c_void_p, array_1d_float]
-libzrcgym.env_step.restype = None
-libzrcgym.env_step.argtypes = [c_void_p, array_1d_float, array_1d_float, c_float_p, c_int_p]
 libzrcgym.env_render.restype = None
 libzrcgym.env_render.argtypes = [c_void_p]
+libzrcgym.env_reset_locomotion.restype = None
+libzrcgym.env_reset_locomotion.argtypes = [c_void_p, array_1d_float]
+libzrcgym.env_step_locomotion.restype = None
+libzrcgym.env_step_locomotion.argtypes = [c_void_p, array_1d_float, array_1d_float, c_float_p, c_int_p]
+libzrcgym.env_reset_sense.restype = None
+libzrcgym.env_reset_sense.argtypes = [c_void_p, array_1d_float]
+libzrcgym.env_step_sense.restype = None
+libzrcgym.env_step_sense.argtypes = [c_void_p, array_1d_float, array_1d_float, c_float_p, c_int_p]
 
 class ZrcEnv(gym.Env):
   metadata = {'render.modes': ['human']}
 
-  def __init__(self):
+  def __init__(self, train_mode='locomotion'):
       #self.obs_shape = (64, int(libzrcgym.env_observation_length()/64),)
-      self.obs_shape = (libzrcgym.env_observation_length(),)
-      self.action_shape = (libzrcgym.env_action_length(),)
+      if (train_mode == 'sense'):
+          self.obs_shape = (libzrcgym.env_sense_obs_length(),)
+          self.action_shape = (libzrcgym.env_sense_act_length(),)
+          self.train_reset = libzrcgym.env_reset_sense
+          self.train_step = libzrcgym.env_step_sense
+      else:
+          self.obs_shape = (libzrcgym.env_locomotion_obs_length(),)
+          self.action_shape = (libzrcgym.env_locomotion_act_length(),)
+          self.train_reset = libzrcgym.env_reset_locomotion
+          self.train_step = libzrcgym.env_step_locomotion
       self.action_space = spaces.Box(low=-1, high=+1, shape=self.action_shape, dtype=np.float32)
       self.observation_space = spaces.Box(low=-1, high=+1, shape=self.obs_shape, dtype=np.float32)
       self.env = libzrcgym.env_create()
@@ -56,11 +72,11 @@ class ZrcEnv(gym.Env):
       observation = np.empty(self.obs_shape, dtype=np.float32)
       reward = c_float()
       done = c_int()
-      libzrcgym.env_step(self.env, action, observation, byref(reward), byref(done))
+      self.train_step(self.env, action, observation, byref(reward), byref(done))
       return observation, reward.value, bool(done.value), {}
   def reset(self):
       observation = np.empty(self.obs_shape, dtype=np.float32)
-      libzrcgym.env_reset(self.env, observation)
+      self.train_reset(self.env, observation)
       return observation
   def render(self, mode='human'):
       libzrcgym.env_render(self.env)
