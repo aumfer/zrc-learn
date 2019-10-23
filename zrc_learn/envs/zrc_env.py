@@ -53,13 +53,13 @@ class ZrcEnv(gym.Env):
   def __del__(self):
       libzrcgym.env_delete(self.env)
   def step(self, action):
-      observation = np.empty(self.obs_shape, dtype=np.float32)
+      observation = np.zeros(self.obs_shape, dtype=np.float32)
       reward = c_float()
       done = c_int()
       libzrcgym.env_step(self.env, action, observation, byref(reward), byref(done))
       return observation, reward.value, bool(done.value), {}
   def reset(self):
-      observation = np.empty(self.obs_shape, dtype=np.float32)
+      observation = np.zeros(self.obs_shape, dtype=np.float32)
       libzrcgym.env_reset(self.env, observation)
       return observation
   def render(self, mode='human'):
